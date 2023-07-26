@@ -6,8 +6,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.MSBuild.UnitTests;
-using Microsoft.CodeAnalysis.Test.Utilities;
 using Roslyn.Test.Utilities;
 using Xunit;
 using Xunit.Abstractions;
@@ -17,6 +15,9 @@ namespace Microsoft.CodeAnalysis.MSBuild.UnitTests
     // Generate a list of templates by running `dotnet new list --type project`
     public class OpenProjectsTests : MSBuildWorkspaceTestBase
     {
+        // Microsoft.CodeAnalysis.VisualBasic.ERRID
+        private const string ERR_UndefinedType1 = "BC30002";
+
         protected ITestOutputHelper TestOutputHelper { get; set; }
 
         public OpenProjectsTests(ITestOutputHelper output)
@@ -32,18 +33,23 @@ namespace Microsoft.CodeAnalysis.MSBuild.UnitTests
         [InlineData("wpflib")]
         [InlineData("wpfcustomcontrollib")]
         [InlineData("wpfusercontrollib")]
-        public async Task CSharpTemplateProject_WindowsOnly_LoadWithNoDiagnostics(string templateName, string ignoredDiagnostics = "")
+        public async Task CSharpTemplateProject_WindowsOnly_LoadWithNoDiagnostics(string templateName)
         {
-            await AssertTemplateProjectLoadsCleanlyAsync(templateName, LanguageNames.CSharp, ignoredDiagnostics.Split(';'));
+            var ignoredDiagnostics = templateName switch
+            {
+                _ => Array.Empty<string>(),
+            };
+
+            await AssertTemplateProjectLoadsCleanlyAsync(templateName, LanguageNames.CSharp, ignoredDiagnostics);
         }
 
         [ConditionalTheory(typeof(DotNetSdkMSBuildInstalled))]
         [InlineData("api")]
         [InlineData("web")]
-        [InlineData("grpc", "CS8981")]
+        [InlineData("grpc")]
         [InlineData("webapi")]
         [InlineData("webapp")]
-        [InlineData("mvc", "CS8602")]
+        [InlineData("mvc")]
         [InlineData("angular")]
         [InlineData("react")]
         [InlineData("blazor")]
@@ -55,20 +61,49 @@ namespace Microsoft.CodeAnalysis.MSBuild.UnitTests
         [InlineData("razorclasslib")]
         [InlineData("worker")]
         [InlineData("xunit")]
-        public async Task CSharpTemplateProject_LoadWithNoDiagnostics(string templateName, string ignoredDiagnostics = "")
+        public async Task CSharpTemplateProject_LoadWithNoDiagnostics(string templateName)
         {
-            await AssertTemplateProjectLoadsCleanlyAsync(templateName, LanguageNames.CSharp, ignoredDiagnostics.Split(';'));
+            var ignoredDiagnostics = templateName switch
+            {
+                _ => Array.Empty<string>(),
+            };
+
+            await AssertTemplateProjectLoadsCleanlyAsync(templateName, LanguageNames.CSharp, ignoredDiagnostics);
+        }
+
+        [ConditionalTheory(typeof(DotNetSdkMSBuildInstalled), typeof(WindowsOnly))]
+        [InlineData("winforms")]
+        [InlineData("winformslib")]
+        [InlineData("winformscontrollib")]
+        [InlineData("wpf")]
+        [InlineData("wpflib")]
+        [InlineData("wpfcustomcontrollib")]
+        [InlineData("wpfusercontrollib")]
+        public async Task VisualBasicTemplateProject_WindowsOnly_LoadWithNoDiagnostics(string templateName)
+        {
+            var ignoredDiagnostics = templateName switch
+            {
+                _ => Array.Empty<string>(),
+            };
+
+            await AssertTemplateProjectLoadsCleanlyAsync(templateName, LanguageNames.VisualBasic, ignoredDiagnostics);
         }
 
         [ConditionalTheory(typeof(DotNetSdkMSBuildInstalled))]
-        [InlineData("classlib", "BC30002")]
-        [InlineData("console", "BC30002")]
-        [InlineData("mstest", "BC30002")]
-        [InlineData("nunit", "BC30002")]
-        [InlineData("xunit", "BC30002")]
-        public async Task VisualBasicTemplateProject_LoadWithNoDiagnostics(string templateName, string ignoredDiagnostics)
+        [InlineData("classlib")]
+        [InlineData("console")]
+        [InlineData("mstest")]
+        [InlineData("nunit")]
+        [InlineData("xunit")]
+        public async Task VisualBasicTemplateProject_LoadWithNoDiagnostics(string templateName)
         {
-            await AssertTemplateProjectLoadsCleanlyAsync(templateName, LanguageNames.VisualBasic, ignoredDiagnostics.Split(';'));
+            var ignoredDiagnostics = (templateName, isWindows: ExecutionConditionUtil.IsWindows) switch
+            {
+                (_, isWindows: false) => new string[] { ERR_UndefinedType1 },
+                _ => Array.Empty<string>(),
+            };
+
+            await AssertTemplateProjectLoadsCleanlyAsync(templateName, LanguageNames.VisualBasic, ignoredDiagnostics);
         }
 
         private async Task AssertTemplateProjectLoadsCleanlyAsync(string templateName, string languageName, string[] ignoredDiagnostics = null)
