@@ -1,4 +1,6 @@
-// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the MIT license.  See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections.Immutable;
@@ -106,11 +108,11 @@ namespace Microsoft.CodeAnalysis.MSBuild.UnitTests
             await AssertTemplateProjectLoadsCleanlyAsync(templateName, LanguageNames.VisualBasic, ignoredDiagnostics);
         }
 
-        private async Task AssertTemplateProjectLoadsCleanlyAsync(string templateName, string languageName, string[] ignoredDiagnostics = null)
+        private async Task AssertTemplateProjectLoadsCleanlyAsync(string templateName, string languageName, string[] ignoredDiagnostics)
         {
             try
             {
-                if (ignoredDiagnostics is not null)
+                if (ignoredDiagnostics.Length > 0)
                 {
                     TestOutputHelper.WriteLine($"Ignoring compiler diagnostics: \"{string.Join("\", \"", ignoredDiagnostics)}\"");
                 }
@@ -150,10 +152,11 @@ namespace Microsoft.CodeAnalysis.MSBuild.UnitTests
             Assert.Empty(workspace.Diagnostics);
 
             var compilation = await project.GetCompilationAsync();
+            Assert.NotNull(compilation);
 
-            // Unnecessary using directives are reported with a severty of Hidden
-            var diagnostics = compilation.GetDiagnostics()
-                .Where(diagnostic => diagnostic.Severity > DiagnosticSeverity.Hidden && ignoredDiagnostics?.Contains(diagnostic.Id) != true);
+            // Unnecessary using directives are reported with a severity of Hidden
+            var diagnostics = compilation!.GetDiagnostics()
+                .Where(diagnostic => diagnostic.Severity > DiagnosticSeverity.Hidden && ignoredDiagnostics.Contains(diagnostic.Id) != true);
 
             Assert.Empty(diagnostics);
         }
@@ -209,7 +212,7 @@ namespace Microsoft.CodeAnalysis.MSBuild.UnitTests
             Assert.NotNull(DotNetSdkMSBuildInstalled.SdkPath);
 
             var dotNetExeName = "dotnet" + (Path.DirectorySeparatorChar == '/' ? "" : ".exe");
-            var exePath = Path.Combine(DotNetSdkMSBuildInstalled.SdkPath, dotNetExeName);
+            var exePath = Path.Combine(DotNetSdkMSBuildInstalled.SdkPath!, dotNetExeName);
 
             return ProcessUtilities.Run(
                 exePath, arguments,
