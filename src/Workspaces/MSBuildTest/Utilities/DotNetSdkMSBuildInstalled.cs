@@ -117,10 +117,8 @@ namespace Microsoft.CodeAnalysis.MSBuild.UnitTests
         {
         }
 
-        // Eventually should revert condition to 'SdkPath is null' after MSBuild issue is fixed:
-        // https://github.com/dotnet/roslyn/issues/67566
         public override bool ShouldSkip
-            => true;
+            =>  SdkPath is null;
 
         public override string SkipReason
 #if NETCOREAPP
