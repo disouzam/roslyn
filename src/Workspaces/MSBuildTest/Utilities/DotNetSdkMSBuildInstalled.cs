@@ -118,7 +118,7 @@ namespace Microsoft.CodeAnalysis.MSBuild.UnitTests
         }
 
         public override bool ShouldSkip
-            =>  SdkPath is null;
+            => SdkPath is null;
 
         public override string SkipReason
 #if NETCOREAPP
