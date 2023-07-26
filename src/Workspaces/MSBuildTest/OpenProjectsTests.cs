@@ -118,7 +118,7 @@ namespace Microsoft.CodeAnalysis.MSBuild.UnitTests
                 // Clean up previous run
                 CleanupProject(templateName, languageName);
 
-                var projectFilePath = await GenerateProjectFromTemplateAsync(templateName, languageName, TestOutputHelper);
+                var projectFilePath = GenerateProjectFromTemplate(templateName, languageName, TestOutputHelper);
 
                 await AssertProjectLoadsCleanlyAsync(projectFilePath, ignoredDiagnostics);
 
@@ -131,12 +131,12 @@ namespace Microsoft.CodeAnalysis.MSBuild.UnitTests
             }
         }
 
-        private async Task<string> GenerateProjectFromTemplateAsync(string templateName, string languageName, ITestOutputHelper outputHelper)
+        private string GenerateProjectFromTemplate(string templateName, string languageName, ITestOutputHelper outputHelper)
         {
             var projectPath = GetProjectPath(templateName, languageName);
             var projectFilePath = GetProjectFilePath(projectPath, languageName);
 
-            var exitCode = await NewProjectAsync(templateName, projectPath, languageName, outputHelper);
+            var exitCode = NewProject(templateName, projectPath, languageName, outputHelper);
             Assert.Equal(0, exitCode);
 
             return projectFilePath;
@@ -187,7 +187,7 @@ namespace Microsoft.CodeAnalysis.MSBuild.UnitTests
             return Path.Combine(projectPath, $"{projectName}.{projectExtension}");
         }
 
-        public async Task<int> NewProjectAsync(string templateName, string outputPath, string languageName, ITestOutputHelper output)
+        public int NewProject(string templateName, string outputPath, string languageName, ITestOutputHelper output)
         {
             var language = languageName switch
             {
