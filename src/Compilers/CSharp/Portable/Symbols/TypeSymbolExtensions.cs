@@ -146,6 +146,19 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
             return type.GetNullableUnderlyingTypeWithAnnotations().Type;
         }
 
+        public static bool IsNullableType(this TypeSymbol? type, [NotNullWhen(true)] out TypeSymbol? underlyingType)
+        {
+            if (type is NamedTypeSymbol nt
+                && nt.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
+            {
+                underlyingType = nt.TypeArgumentsWithAnnotationsNoUseSiteDiagnostics[0].Type;
+                return true;
+            }
+
+            underlyingType = null;
+            return false;
+        }
+
         public static TypeWithAnnotations GetNullableUnderlyingTypeWithAnnotations(this TypeSymbol type)
         {
             RoslynDebug.Assert((object)type != null);
@@ -2060,7 +2073,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
                    IsContainedInNamespace(type, "System", "Numerics");
         }
 
-        private static bool IsWellKnownDiagnosticsCodeAnalysisTopLevelType(this TypeSymbol typeSymbol)
+        internal static bool IsWellKnownDiagnosticsCodeAnalysisTopLevelType(this TypeSymbol typeSymbol)
             => typeSymbol.ContainingType is null && IsContainedInNamespace(typeSymbol, "System", "Diagnostics", "CodeAnalysis");
 
         private static bool IsContainedInNamespace(this TypeSymbol typeSymbol, string outerNS, string midNS, string? innerNS = null)

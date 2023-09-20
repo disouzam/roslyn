@@ -47,6 +47,15 @@ internal sealed class CodeLensHandler : ILspServiceDocumentRequestHandler<LSP.Co
     public async Task<LSP.CodeLens[]?> HandleRequestAsync(LSP.CodeLensParams request, RequestContext context, CancellationToken cancellationToken)
     {
         var document = context.GetRequiredDocument();
+        var referencesCodeLensEnabled = _globalOptionService.GetOption(LspOptionsStorage.LspEnableReferencesCodeLens, document.Project.Language);
+        var testsCodeLensEnabled = _globalOptionService.GetOption(LspOptionsStorage.LspEnableTestsCodeLens, document.Project.Language);
+
+        if (!referencesCodeLensEnabled && !testsCodeLensEnabled)
+        {
+            // No code lenses are enabled, just return.
+            return Array.Empty<LSP.CodeLens>();
+        }
+
         var codeLensMemberFinder = document.GetRequiredLanguageService<ICodeLensMemberFinder>();
         var members = await codeLensMemberFinder.GetCodeLensMembersAsync(document, cancellationToken).ConfigureAwait(false);
 
@@ -56,9 +65,32 @@ internal sealed class CodeLensHandler : ILspServiceDocumentRequestHandler<LSP.Co
         }
 
         var text = await document.GetValueTextAsync(cancellationToken).ConfigureAwait(false);
+        using var _ = ArrayBuilder<LSP.CodeLens>.GetInstance(out var codeLenses);
+
+        if (referencesCodeLensEnabled)
+        {
+            await AddReferencesCodeLensAsync(codeLenses, members, document, text, request.TextDocument, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (!_globalOptionService.GetOption(LspOptionsStorage.LspUsingDevkitFeatures) && testsCodeLensEnabled)
+        {
+            // Only return test codelenses if we're not using devkit.
+            AddTestCodeLens(codeLenses, members, document, text, request.TextDocument);
+        }
+
+        return codeLenses.ToArray();
+    }
+
+    private static async Task AddReferencesCodeLensAsync(
+        ArrayBuilder<LSP.CodeLens> codeLenses,
+        ImmutableArray<CodeLensMember> members,
+        Document document,
+        SourceText text,
+        LSP.TextDocumentIdentifier textDocumentIdentifier,
+        CancellationToken cancellationToken)
+    {
         var syntaxVersion = await document.GetSyntaxVersionAsync(cancellationToken).ConfigureAwait(false);
 
-        using var _ = ArrayBuilder<LSP.CodeLens>.GetInstance(out var codeLenses);
         for (var i = 0; i < members.Length; i++)
         {
             // First add references code lens.
@@ -68,19 +100,11 @@ internal sealed class CodeLensHandler : ILspServiceDocumentRequestHandler<LSP.Co
             {
                 Range = range,
                 Command = null,
-                Data = new CodeLensResolveData(syntaxVersion.ToString(), i, request.TextDocument)
+                Data = new CodeLensResolveData(syntaxVersion.ToString(), i, textDocumentIdentifier)
             };
 
             codeLenses.Add(codeLens);
         }
-
-        if (!_globalOptionService.GetOption(LspOptionsStorage.LspUsingDevkitFeatures))
-        {
-            // Only return test codelenses if we're not using devkit.
-            AddTestCodeLens(codeLenses, members, document, text, request.TextDocument);
-        }
-
-        return codeLenses.ToArray();
     }
 
     private static void AddTestCodeLens(
@@ -113,6 +137,9 @@ internal sealed class CodeLensHandler : ILspServiceDocumentRequestHandler<LSP.Co
         var testContainerMembers = members.Where(member => testContainerNodes.Contains(member.Node));
 
         // Create code lenses for all test methods.
+
+        // The client will fill this in if applicable.
+        string? runSettingsPath = null;
         foreach (var member in testMethodMembers)
         {
             var range = ProtocolConversions.TextSpanToRange(member.Span, text);
@@ -122,7 +149,7 @@ internal sealed class CodeLensHandler : ILspServiceDocumentRequestHandler<LSP.Co
                 Command = new LSP.Command
                 {
                     CommandIdentifier = RunTestsCommandIdentifier,
-                    Arguments = new object[] { new RunTestsParams(textDocumentIdentifier, range, AttachDebugger: false) },
+                    Arguments = new object[] { new RunTestsParams(textDocumentIdentifier, range, AttachDebugger: false, runSettingsPath) },
                     Title = FeaturesResources.Run_Test
                 }
             };
@@ -133,7 +160,7 @@ internal sealed class CodeLensHandler : ILspServiceDocumentRequestHandler<LSP.Co
                 Command = new LSP.Command
                 {
                     CommandIdentifier = RunTestsCommandIdentifier,
-                    Arguments = new object[] { new RunTestsParams(textDocumentIdentifier, range, AttachDebugger: true) },
+                    Arguments = new object[] { new RunTestsParams(textDocumentIdentifier, range, AttachDebugger: true, runSettingsPath) },
                     Title = FeaturesResources.Debug_Test
                 }
             };
@@ -152,7 +179,7 @@ internal sealed class CodeLensHandler : ILspServiceDocumentRequestHandler<LSP.Co
                 Command = new LSP.Command
                 {
                     CommandIdentifier = RunTestsCommandIdentifier,
-                    Arguments = new object[] { new RunTestsParams(textDocumentIdentifier, range, AttachDebugger: false) },
+                    Arguments = new object[] { new RunTestsParams(textDocumentIdentifier, range, AttachDebugger: false, runSettingsPath) },
                     Title = FeaturesResources.Run_All_Tests
                 }
             };
@@ -163,7 +190,7 @@ internal sealed class CodeLensHandler : ILspServiceDocumentRequestHandler<LSP.Co
                 Command = new LSP.Command
                 {
                     CommandIdentifier = RunTestsCommandIdentifier,
-                    Arguments = new object[] { new RunTestsParams(textDocumentIdentifier, range, AttachDebugger: true) },
+                    Arguments = new object[] { new RunTestsParams(textDocumentIdentifier, range, AttachDebugger: true, runSettingsPath) },
                     Title = FeaturesResources.Debug_All_Tests
                 }
             };

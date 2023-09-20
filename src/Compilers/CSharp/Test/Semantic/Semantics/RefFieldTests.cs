@@ -10843,12 +10843,12 @@ class Program
                 // (6,35): warning CS0168: The variable 'r' is declared but never used
                 //         var f1 = (scoped scoped R r) => { };
                 Diagnostic(ErrorCode.WRN_UnreferencedVar, "r").WithArguments("r").WithLocation(6, 35),
-                // (6,36): error CS1002: ; expected
+                // (6,36): error CS1003: Syntax error, ',' expected
                 //         var f1 = (scoped scoped R r) => { };
-                Diagnostic(ErrorCode.ERR_SemicolonExpected, ")").WithLocation(6, 36),
-                // (6,36): error CS1513: } expected
+                Diagnostic(ErrorCode.ERR_SyntaxError, ")").WithArguments(",").WithLocation(6, 36),
+                // (6,41): error CS1002: ; expected
                 //         var f1 = (scoped scoped R r) => { };
-                Diagnostic(ErrorCode.ERR_RbraceExpected, ")").WithLocation(6, 36),
+                Diagnostic(ErrorCode.ERR_SemicolonExpected, "{").WithLocation(6, 41),
                 // (7,19): error CS1525: Invalid expression term 'ref'
                 //         var f2 = (ref scoped scoped R r) => { };
                 Diagnostic(ErrorCode.ERR_InvalidExprTerm, "ref scoped").WithArguments("ref").WithLocation(7, 19),
@@ -10867,12 +10867,12 @@ class Program
                 // (7,39): warning CS0168: The variable 'r' is declared but never used
                 //         var f2 = (ref scoped scoped R r) => { };
                 Diagnostic(ErrorCode.WRN_UnreferencedVar, "r").WithArguments("r").WithLocation(7, 39),
-                // (7,40): error CS1002: ; expected
+                // (7,40): error CS1003: Syntax error, ',' expected
                 //         var f2 = (ref scoped scoped R r) => { };
-                Diagnostic(ErrorCode.ERR_SemicolonExpected, ")").WithLocation(7, 40),
-                // (7,40): error CS1513: } expected
+                Diagnostic(ErrorCode.ERR_SyntaxError, ")").WithArguments(",").WithLocation(7, 40),
+                // (7,45): error CS1002: ; expected
                 //         var f2 = (ref scoped scoped R r) => { };
-                Diagnostic(ErrorCode.ERR_RbraceExpected, ")").WithLocation(7, 40),
+                Diagnostic(ErrorCode.ERR_SemicolonExpected, "{").WithLocation(7, 45),
                 // (8,19): error CS0103: The name 'scoped' does not exist in the current context
                 //         var f3 = (scoped scoped ref R r) => { };
                 Diagnostic(ErrorCode.ERR_NameNotInContext, "scoped").WithArguments("scoped").WithLocation(8, 19),
@@ -10891,13 +10891,12 @@ class Program
                 // (8,39): warning CS0168: The variable 'r' is declared but never used
                 //         var f3 = (scoped scoped ref R r) => { };
                 Diagnostic(ErrorCode.WRN_UnreferencedVar, "r").WithArguments("r").WithLocation(8, 39),
-                // (8,40): error CS1002: ; expected
+                // (8,40): error CS1003: Syntax error, ',' expected
                 //         var f3 = (scoped scoped ref R r) => { };
-                Diagnostic(ErrorCode.ERR_SemicolonExpected, ")").WithLocation(8, 40),
-                // (8,40): error CS1513: } expected
+                Diagnostic(ErrorCode.ERR_SyntaxError, ")").WithArguments(",").WithLocation(8, 40),
+                // (8,45): error CS1002: ; expected
                 //         var f3 = (scoped scoped ref R r) => { };
-                Diagnostic(ErrorCode.ERR_RbraceExpected, ")").WithLocation(8, 40)
-                );
+                Diagnostic(ErrorCode.ERR_SemicolonExpected, "{").WithLocation(8, 45));
         }
 
         [Fact]
@@ -11295,17 +11294,15 @@ scoped readonly ref struct C { }
                 );
         }
 
-        [Theory]
-        [InlineData(LanguageVersion.CSharp10)]
-        [InlineData(LanguageVersion.CSharp11)]
-        public void TypeScopeModifier_02(LanguageVersion langVersion)
+        [Fact]
+        public void TypeScopeModifier_02_CSharp10()
         {
             var source =
 @"scoped record A { }
 scoped readonly record struct B;
 readonly scoped record struct C();
 ";
-            var comp = CreateCompilation(source, parseOptions: TestOptions.Regular.WithLanguageVersion(langVersion));
+            var comp = CreateCompilation(source, parseOptions: TestOptions.Regular.WithLanguageVersion(LanguageVersion.CSharp10));
             comp.VerifyDiagnostics(
                 // (1,8): error CS0118: 'record' is a variable but is used like a type
                 // scoped record A { }
@@ -11337,9 +11334,55 @@ readonly scoped record struct C();
                 // (3,24): error CS1002: ; expected
                 // readonly scoped record struct C();
                 Diagnostic(ErrorCode.ERR_SemicolonExpected, "struct").WithLocation(3, 24),
-                // (3,32): error CS8652: The feature 'primary constructors' is currently in Preview and *unsupported*. To use Preview features, use the 'preview' language version.
+                // (3,32): error CS8936: Feature 'primary constructors' is not available in C# 10.0. Please use language version 12.0 or greater.
                 // readonly scoped record struct C();
-                Diagnostic(ErrorCode.ERR_FeatureInPreview, "()").WithArguments("primary constructors").WithLocation(3, 32)
+                Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion10, "()").WithArguments("primary constructors", "12.0").WithLocation(3, 32)
+                );
+        }
+
+        [Fact]
+        public void TypeScopeModifier_02_CSharp11()
+        {
+            var source =
+@"scoped record A { }
+scoped readonly record struct B;
+readonly scoped record struct C();
+";
+            var comp = CreateCompilation(source, parseOptions: TestOptions.Regular.WithLanguageVersion(LanguageVersion.CSharp11));
+            comp.VerifyDiagnostics(
+                // (1,8): error CS0118: 'record' is a variable but is used like a type
+                // scoped record A { }
+                Diagnostic(ErrorCode.ERR_BadSKknown, "record").WithArguments("record", "variable", "type").WithLocation(1, 8),
+                // (1,15): error CS0116: A namespace cannot directly contain members such as fields, methods or statements
+                // scoped record A { }
+                Diagnostic(ErrorCode.ERR_NamespaceUnexpected, "A").WithLocation(1, 15),
+                // (1,15): error CS0106: The modifier 'scoped' is not valid for this item
+                // scoped record A { }
+                Diagnostic(ErrorCode.ERR_BadMemberFlag, "A").WithArguments("scoped").WithLocation(1, 15),
+                // (1,15): error CS0548: '<invalid-global-code>.A': property or indexer must have at least one accessor
+                // scoped record A { }
+                Diagnostic(ErrorCode.ERR_PropertyWithNoAccessors, "A").WithArguments("<invalid-global-code>.A").WithLocation(1, 15),
+                // (2,8): error CS1585: Member modifier 'readonly' must precede the member type and name
+                // scoped readonly record struct B;
+                Diagnostic(ErrorCode.ERR_BadModifierLocation, "readonly").WithArguments("readonly").WithLocation(2, 8),
+                // (3,1): error CS8803: Top-level statements must precede namespace and type declarations.
+                // readonly scoped record struct C();
+                Diagnostic(ErrorCode.ERR_TopLevelStatementAfterNamespaceOrType, "readonly scoped record ").WithLocation(3, 1),
+                // (3,1): error CS0106: The modifier 'readonly' is not valid for this item
+                // readonly scoped record struct C();
+                Diagnostic(ErrorCode.ERR_BadMemberFlag, "readonly").WithArguments("readonly").WithLocation(3, 1),
+                // (3,10): error CS0246: The type or namespace name 'scoped' could not be found (are you missing a using directive or an assembly reference?)
+                // readonly scoped record struct C();
+                Diagnostic(ErrorCode.ERR_SingleTypeNameNotFound, "scoped").WithArguments("scoped").WithLocation(3, 10),
+                // (3,17): warning CS0168: The variable 'record' is declared but never used
+                // readonly scoped record struct C();
+                Diagnostic(ErrorCode.WRN_UnreferencedVar, "record").WithArguments("record").WithLocation(3, 17),
+                // (3,24): error CS1002: ; expected
+                // readonly scoped record struct C();
+                Diagnostic(ErrorCode.ERR_SemicolonExpected, "struct").WithLocation(3, 24),
+                // (3,32): error CS9058: Feature 'primary constructors' is not available in C# 11.0. Please use language version 12.0 or greater.
+                // readonly scoped record struct C();
+                Diagnostic(ErrorCode.ERR_FeatureNotAvailableInVersion11, "()").WithArguments("primary constructors", "12.0").WithLocation(3, 32)
                 );
         }
 
@@ -16146,8 +16189,7 @@ class Program
             comp.VerifyDiagnostics(
                 // (13,17): error CS1688: Cannot convert anonymous method block without a parameter list to delegate type 'D1' because it has one or more out parameters
                 //         D1 d1 = delegate { };
-                Diagnostic(ErrorCode.ERR_CantConvAnonMethNoParams, "delegate { }").WithArguments("D1").WithLocation(13, 17)
-                );
+                Diagnostic(ErrorCode.ERR_CantConvAnonMethNoParams, "delegate").WithArguments("D1").WithLocation(13, 17));
 
             var tree = comp.SyntaxTrees.Single();
             var model = comp.GetSemanticModel(tree);
@@ -16180,10 +16222,9 @@ class Program
                 """;
             var comp = CreateCompilation(source, targetFramework: TargetFramework.Net70);
             comp.VerifyDiagnostics(
-                // (12,17): error CS1593: Delegate 'D1' does not take 0 arguments
+                // (12,20): error CS1593: Delegate 'D1' does not take 0 arguments
                 //         D1 d1 = () => new R();
-                Diagnostic(ErrorCode.ERR_BadDelArgCount, "() => new R()").WithArguments("D1", "0").WithLocation(12, 17)
-                );
+                Diagnostic(ErrorCode.ERR_BadDelArgCount, "=>").WithArguments("D1", "0").WithLocation(12, 20));
         }
 
         [Fact]
@@ -16208,13 +16249,12 @@ class Program
                 """;
             var comp = CreateCompilation(source, targetFramework: TargetFramework.Net70);
             comp.VerifyDiagnostics(
-                // (12,17): error CS1593: Delegate 'D1' does not take 1 arguments
+                // (12,19): error CS1593: Delegate 'D1' does not take 1 arguments
                 //         D1 d1 = r => r;
-                Diagnostic(ErrorCode.ERR_BadDelArgCount, "r => r").WithArguments("D1", "1").WithLocation(12, 17),
-                // (13,17): error CS1593: Delegate 'D1' does not take 1 arguments
+                Diagnostic(ErrorCode.ERR_BadDelArgCount, "=>").WithArguments("D1", "1").WithLocation(12, 19),
+                // (13,30): error CS1593: Delegate 'D1' does not take 1 arguments
                 //         D1 d2 = (scoped R r) => r;
-                Diagnostic(ErrorCode.ERR_BadDelArgCount, "(scoped R r) => r").WithArguments("D1", "1").WithLocation(13, 17)
-                );
+                Diagnostic(ErrorCode.ERR_BadDelArgCount, "=>").WithArguments("D1", "1").WithLocation(13, 30));
         }
 
         [Fact]
@@ -16843,7 +16883,7 @@ class B2 : A<string>
 
         [CombinatorialData]
         [Theory]
-        public void Overrides_02(bool useCompilationReference)
+        public void Overrides_02(bool useCompilationReference, [CombinatorialValues("in", "ref readonly")] string modifier)
         {
             var sourceA =
 @"public abstract class A<T>
@@ -16852,8 +16892,8 @@ class B2 : A<string>
     public abstract ref T F2(scoped out T t);
     public abstract ref T F3(ref T t);
     public abstract ref T F4(scoped ref T t);
-    public abstract ref T F5(in T t);
-    public abstract ref T F6(scoped in T t);
+    public abstract ref T F5(" + modifier + @" T t);
+    public abstract ref T F6(scoped " + modifier + @" T t);
 }";
             var comp = CreateCompilation(sourceA);
             comp.VerifyEmitDiagnostics();
@@ -16866,8 +16906,8 @@ class B2 : A<string>
     public override ref int F2(scoped out int i) => throw null;
     public override ref int F3(ref int i) => throw null;
     public override ref int F4(scoped ref int i) => throw null;
-    public override ref int F5(in int i) => throw null;
-    public override ref int F6(scoped in int i) => throw null;
+    public override ref int F5(" + modifier + @" int i) => throw null;
+    public override ref int F6(scoped " + modifier + @" int i) => throw null;
 }
 class B2 : A<string>
 {
@@ -16875,8 +16915,8 @@ class B2 : A<string>
     public override ref string F2(out string s) => throw null;
     public override ref string F3(scoped ref string s) => throw null;
     public override ref string F4(ref string s) => throw null; // 1
-    public override ref string F5(scoped in string s) => throw null;
-    public override ref string F6(in string s) => throw null; // 2
+    public override ref string F5(scoped " + modifier + @" string s) => throw null;
+    public override ref string F6(" + modifier + @" string s) => throw null; // 2
 }";
             comp = CreateCompilation(sourceB, references: new[] { refA });
             comp.VerifyEmitDiagnostics(
@@ -25629,6 +25669,225 @@ public class A
                 // (17,6): error CS9101: UnscopedRefAttribute can only be applied to struct instance methods and properties, and cannot be applied to constructors or init-only members.
                 //     [UnscopedRef] public override ref string F2() => ref _f2; // 3
                 Diagnostic(ErrorCode.ERR_UnscopedRefAttributeUnsupportedMemberTarget, "UnscopedRef").WithLocation(17, 6));
+        }
+
+        [Theory, CombinatorialData, WorkItem("https://github.com/dotnet/roslyn/issues/67697")]
+        public void UnscopedRefAttribute_NestedAccess_MethodOrProperty(bool firstIsMethod, bool secondIsMethod)
+        {
+            var source = $$"""
+                using System.Diagnostics.CodeAnalysis;
+
+                var c = new C();
+                c.Value() = 12;
+                System.Console.WriteLine(c.Value());
+
+                class C
+                {
+                    private S1 s1;
+                    public ref int Value() => ref s1.S2{{csharp(firstIsMethod)}}.Value{{csharp(secondIsMethod)}};
+                }
+
+                struct S1
+                {
+                    private S2 s2;
+                    [UnscopedRef] public ref S2 S2{{csharp(firstIsMethod)}} => ref s2;
+                }
+
+                struct S2
+                {
+                    private int value;
+                    [UnscopedRef] public ref int Value{{csharp(secondIsMethod)}} => ref value;
+                }
+                """;
+            var verifier = CompileAndVerify(new[] { source, UnscopedRefAttributeDefinition }, expectedOutput: "12", verify: Verification.Fails);
+            verifier.VerifyDiagnostics();
+            verifier.VerifyMethodBody("C.Value", $$"""
+                {
+                  // Code size       17 (0x11)
+                  .maxstack  1
+                  // sequence point: s1.S2{{csharp(firstIsMethod)}}.Value{{csharp(secondIsMethod)}}
+                  IL_0000:  ldarg.0
+                  IL_0001:  ldflda     "S1 C.s1"
+                  IL_0006:  call       "ref S2 S1.S2{{il(firstIsMethod)}}"
+                  IL_000b:  call       "ref int S2.Value{{il(secondIsMethod)}}"
+                  IL_0010:  ret
+                }
+                """);
+
+            static string csharp(bool method) => method ? "()" : "";
+            static string il(bool method) => method ? "()" : ".get";
+        }
+
+        [Fact]
+        public void UnscopedRefAttribute_NestedAccess_Properties_Invalid()
+        {
+            var source = """
+                using System.Diagnostics.CodeAnalysis;
+
+                class C
+                {
+                    private S1 s1;
+                    public ref int Value() => ref s1.S2.Value;
+                }
+
+                struct S1
+                {
+                    private S2 s2;
+                    public S2 S2 => s2;
+                }
+
+                struct S2
+                {
+                    private int value;
+                    [UnscopedRef] public ref int Value => ref value;
+                }
+                """;
+            CreateCompilation(new[] { source, UnscopedRefAttributeDefinition }).VerifyDiagnostics(
+                // 0.cs(6,35): error CS8156: An expression cannot be used in this context because it may not be passed or returned by reference
+                //     public ref int Value() => ref s1.S2.Value;
+                Diagnostic(ErrorCode.ERR_RefReturnLvalueExpected, "s1.S2").WithLocation(6, 35),
+                // 0.cs(11,16): warning CS0649: Field 'S1.s2' is never assigned to, and will always have its default value 
+                //     private S2 s2;
+                Diagnostic(ErrorCode.WRN_UnassignedInternalField, "s2").WithArguments("S1.s2", "").WithLocation(11, 16));
+        }
+
+        [Theory, CombinatorialData]
+        public void UnscopedRefAttribute_NestedAccess_MethodOrProperty_Readonly(
+            [CombinatorialValues("", "()")] string op1, [CombinatorialValues("", "()")] string op2)
+        {
+            var source = $$"""
+                using System.Diagnostics.CodeAnalysis;
+
+                class C
+                {
+                    private S1 s1;
+                    public ref int Value() => ref s1.S2{{op1}}.Value{{op2}};
+                }
+
+                struct S1
+                {
+                    private readonly S2 s2;
+                    [UnscopedRef] public ref readonly S2 S2{{op1}} => ref s2;
+                }
+
+                struct S2
+                {
+                    private int value;
+                    [UnscopedRef] public ref int Value{{op2}} => ref value;
+                }
+                """;
+            CreateCompilation(new[] { source, UnscopedRefAttributeDefinition }).VerifyDiagnostics(
+                // 0.cs(6,35): error CS8156: An expression cannot be used in this context because it may not be passed or returned by reference
+                //     public ref int Value() => ref s1.S2.Value;
+                Diagnostic(ErrorCode.ERR_RefReturnLvalueExpected, $"s1.S2{op1}").WithLocation(6, 35));
+        }
+
+        [Fact, WorkItem("https://github.com/dotnet/roslyn/issues/67626")]
+        public void UnscopedRefAttribute_NestedAccess_Indexer()
+        {
+            var source = $$"""
+                using System.Diagnostics.CodeAnalysis;
+
+                var c = new C();
+                c.Value(0) = 12;
+                System.Console.WriteLine(c.Value(0));
+
+                class C
+                {
+                    private S1 s1;
+                    public ref int Value(int i) => ref s1[i].Value;
+                }
+
+                struct S1
+                {
+                    private S2 s2;
+                    [UnscopedRef] public ref S2 this[int i] => ref s2;
+                }
+
+                struct S2
+                {
+                    private int value;
+                    [UnscopedRef] public ref int Value => ref value;
+                }
+                """;
+            var verifier = CompileAndVerify(new[] { source, UnscopedRefAttributeDefinition }, expectedOutput: "12", verify: Verification.Fails);
+            verifier.VerifyDiagnostics();
+            verifier.VerifyMethodBody("C.Value", """
+                {
+                  // Code size       18 (0x12)
+                  .maxstack  2
+                  // sequence point: s1[i].Value
+                  IL_0000:  ldarg.0
+                  IL_0001:  ldflda     "S1 C.s1"
+                  IL_0006:  ldarg.1
+                  IL_0007:  call       "ref S2 S1.this[int].get"
+                  IL_000c:  call       "ref int S2.Value.get"
+                  IL_0011:  ret
+                }
+                """);
+        }
+
+        [Fact]
+        public void UnscopedRefAttribute_NestedAccess_Indexer_Invalid()
+        {
+            var source = """
+                using System.Diagnostics.CodeAnalysis;
+
+                class C
+                {
+                    private S1 s1;
+                    public ref int Value(int i) => ref s1[i].Value;
+                }
+
+                struct S1
+                {
+                    private S2 s2;
+                    public S2 this[int i] => s2;
+                }
+
+                struct S2
+                {
+                    private int value;
+                    [UnscopedRef] public ref int Value => ref value;
+                }
+                """;
+            CreateCompilation(new[] { source, UnscopedRefAttributeDefinition }).VerifyDiagnostics(
+                // 0.cs(6,40): error CS8156: An expression cannot be used in this context because it may not be passed or returned by reference
+                //     public ref int Value(int i) => ref s1[i].Value;
+                Diagnostic(ErrorCode.ERR_RefReturnLvalueExpected, "s1[i]").WithLocation(6, 40),
+                // 0.cs(11,16): warning CS0649: Field 'S1.s2' is never assigned to, and will always have its default value 
+                //     private S2 s2;
+                Diagnostic(ErrorCode.WRN_UnassignedInternalField, "s2").WithArguments("S1.s2", "").WithLocation(11, 16));
+        }
+
+        [Fact]
+        public void UnscopedRefAttribute_NestedAccess_Indexer_Readonly()
+        {
+            var source = """
+                using System.Diagnostics.CodeAnalysis;
+
+                class C
+                {
+                    private S1 s1;
+                    public ref int Value(int i) => ref s1[i][i];
+                }
+
+                struct S1
+                {
+                    private readonly S2 s2;
+                    [UnscopedRef] public ref readonly S2 this[int i] => ref s2;
+                }
+
+                struct S2
+                {
+                    private int value;
+                    [UnscopedRef] public ref int this[int i] => ref value;
+                }
+                """;
+            CreateCompilation(new[] { source, UnscopedRefAttributeDefinition }).VerifyDiagnostics(
+                // 0.cs(6,40): error CS8156: An expression cannot be used in this context because it may not be passed or returned by reference
+                //     public ref int Value(int i) => ref s1[i].Value;
+                Diagnostic(ErrorCode.ERR_RefReturnLvalueExpected, "s1[i]").WithLocation(6, 40));
         }
 
         [WorkItem(64507, "https://github.com/dotnet/roslyn/issues/64507")]

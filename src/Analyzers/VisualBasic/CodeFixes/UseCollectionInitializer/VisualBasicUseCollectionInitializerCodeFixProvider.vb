@@ -5,9 +5,11 @@
 Imports System.Collections.Immutable
 Imports System.Composition
 Imports System.Diagnostics.CodeAnalysis
+Imports System.Threading
+Imports Microsoft.CodeAnalysis.CodeActions
 Imports Microsoft.CodeAnalysis.CodeFixes
+Imports Microsoft.CodeAnalysis.Formatting
 Imports Microsoft.CodeAnalysis.PooledObjects
-Imports Microsoft.CodeAnalysis.Text
 Imports Microsoft.CodeAnalysis.UseCollectionInitializer
 Imports Microsoft.CodeAnalysis.VisualBasic.Syntax
 Imports Microsoft.CodeAnalysis.VisualBasic.UseObjectInitializer
@@ -23,8 +25,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.UseCollectionInitializer
             MemberAccessExpressionSyntax,
             InvocationExpressionSyntax,
             ExpressionStatementSyntax,
-            ForEachStatementSyntax,
-            IfStatementSyntax,
+            LocalDeclarationStatementSyntax,
             VariableDeclaratorSyntax,
             VisualBasicCollectionInitializerAnalyzer)
 
@@ -37,14 +38,16 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.UseCollectionInitializer
             Return VisualBasicCollectionInitializerAnalyzer.Allocate()
         End Function
 
-        Protected Overrides Function GetNewStatement(
-                sourceText As SourceText,
-                statement As StatementSyntax,
+        Protected Overrides Function GetReplacementNodesAsync(
+                document As Document,
+                options As CodeActionOptionsProvider,
                 objectCreation As ObjectCreationExpressionSyntax,
-                wrappingLength As Integer,
                 useCollectionExpression As Boolean,
-                matches As ImmutableArray(Of Match(Of StatementSyntax))) As StatementSyntax
+                matches As ImmutableArray(Of Match(Of StatementSyntax)),
+                cancellationToken As CancellationToken) As Task(Of (SyntaxNode, SyntaxNode))
             Contract.ThrowIfTrue(useCollectionExpression, "VB does not support collection expressions")
+
+            Dim statement = objectCreation.FirstAncestorOrSelf(Of StatementSyntax)
             Dim newStatement = statement.ReplaceNode(
                 objectCreation,
                 GetNewObjectCreation(objectCreation, matches))
@@ -62,7 +65,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.UseCollectionInitializer
                 Next
             Next
 
-            Return newStatement.WithLeadingTrivia(totalTrivia)
+            Dim result = newStatement.WithLeadingTrivia(totalTrivia).WithAdditionalAnnotations(Formatter.Annotation)
+            Return Task.FromResult((DirectCast(statement, SyntaxNode), DirectCast(result, SyntaxNode)))
         End Function
 
         Private Shared Function GetNewObjectCreation(

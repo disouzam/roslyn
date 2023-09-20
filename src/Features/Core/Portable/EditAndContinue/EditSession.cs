@@ -6,20 +6,18 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.CodeAnalysis.Contracts.EditAndContinue;
 using Microsoft.CodeAnalysis.Emit;
 using Microsoft.CodeAnalysis.ErrorReporting;
 using Microsoft.CodeAnalysis.PooledObjects;
 using Microsoft.CodeAnalysis.Shared.Collections;
 using Microsoft.CodeAnalysis.Shared.Extensions;
 using Microsoft.CodeAnalysis.Text;
-using Microsoft.CodeAnalysis.Contracts.EditAndContinue;
 using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.EditAndContinue
@@ -794,10 +792,10 @@ namespace Microsoft.CodeAnalysis.EditAndContinue
 
         public async ValueTask<SolutionUpdate> EmitSolutionUpdateAsync(Solution solution, ActiveStatementSpanProvider solutionActiveStatementSpanProvider, UpdateId updateId, CancellationToken cancellationToken)
         {
+            var log = EditAndContinueService.Log;
+
             try
             {
-                var log = EditAndContinueService.Log;
-
                 log.Write("EmitSolutionUpdate {0}.{1}: '{2}'", updateId.SessionId.Ordinal, updateId.Ordinal, solution.FilePath);
 
                 using var _1 = ArrayBuilder<ManagedHotReloadUpdate>.GetInstance(out var deltas);
@@ -885,19 +883,22 @@ namespace Microsoft.CodeAnalysis.EditAndContinue
                         diagnostics.Add(new(newProject.Id, documentDiagnostics));
                     }
 
-                    var projectSummary = GetProjectAnalysisSummary(changedDocumentAnalyses);
-                    log.Write("Project summary for '{0}': {1}", newProject.Id, projectSummary);
-                    if (projectSummary == ProjectAnalysisSummary.NoChanges)
-                    {
-                        continue;
-                    }
-
                     foreach (var changedDocumentAnalysis in changedDocumentAnalyses)
                     {
                         if (changedDocumentAnalysis.HasChanges)
                         {
                             log.Write("Document changed, added, or deleted: '{0}'", changedDocumentAnalysis.FilePath);
                         }
+
+                        Telemetry.LogAnalysisTime(changedDocumentAnalysis.ElapsedTime);
+                    }
+
+                    var projectSummary = GetProjectAnalysisSummary(changedDocumentAnalyses);
+                    log.Write("Project summary for '{0}': {1}", newProject.Id, projectSummary);
+
+                    if (projectSummary == ProjectAnalysisSummary.NoChanges)
+                    {
+                        continue;
                     }
 
                     // The capability of a module to apply edits may change during edit session if the user attaches debugger to 
@@ -1010,6 +1011,8 @@ namespace Microsoft.CodeAnalysis.EditAndContinue
                     {
                         DebuggingSession.ThrowIfDisposed();
 
+                        var emitDifferenceTimer = SharedStopwatch.StartNew();
+
                         emitResult = newCompilation.EmitDifference(
                             projectBaseline.EmitBaseline,
                             projectChanges.SemanticEdits,
@@ -1018,6 +1021,8 @@ namespace Microsoft.CodeAnalysis.EditAndContinue
                             ilStream,
                             pdbStream,
                             cancellationToken);
+
+                        Telemetry.LogEmitDifferenceTime(emitDifferenceTimer.Elapsed);
                     }
 
                     if (emitResult.Success)
@@ -1112,9 +1117,15 @@ namespace Microsoft.CodeAnalysis.EditAndContinue
 
                 return update;
             }
-            catch (Exception e) when (FatalError.ReportAndPropagateUnlessCanceled(e, cancellationToken))
+            catch (Exception e) when (LogException(e) && FatalError.ReportAndPropagateUnlessCanceled(e, cancellationToken))
             {
                 throw ExceptionUtilities.Unreachable();
+            }
+
+            bool LogException(Exception e)
+            {
+                log.Write("Exception while emitting update: {0}", e.ToString());
+                return true;
             }
         }
 

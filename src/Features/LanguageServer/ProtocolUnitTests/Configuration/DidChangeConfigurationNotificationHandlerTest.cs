@@ -141,7 +141,11 @@ public class A { }";
                 "code_style.formatting.new_line.end_of_line",
                 "code_style.formatting.new_line.insert_final_newline",
                 "background_analysis.dotnet_analyzer_diagnostics_scope",
-                "background_analysis.dotnet_compiler_diagnostics_scope"
+                "background_analysis.dotnet_compiler_diagnostics_scope",
+                "code_lens.dotnet_enable_references_code_lens",
+                "code_lens.dotnet_enable_tests_code_lens",
+                "projects.dotnet_binary_log_path",
+                "projects.dotnet_load_in_process",
             }.OrderBy(name => name);
 
             Assert.Equal(expectedNames, actualNames);
@@ -264,6 +268,10 @@ public class A { }";
                 {
                     var defaultValue = (int)option.DefaultValue!;
                     return defaultValue + 1;
+                }
+                else if (type == typeof(string))
+                {
+                    return Guid.NewGuid().ToString();
                 }
                 else if (type.IsEnum)
                 {
