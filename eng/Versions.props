@@ -234,7 +234,7 @@
     <SystemCommandLineVersion>2.0.0-beta4.23307.1</SystemCommandLineVersion>
     <SystemComponentModelCompositionVersion>7.0.0</SystemComponentModelCompositionVersion>
     <SystemConfigurationConfigurationManagerVersion>7.0.0</SystemConfigurationConfigurationManagerVersion>
-    <SystemDrawingCommonVersion>8.0.0</SystemDrawingCommonVersion>
+    <SystemDrawingCommonVersion>7.0.0</SystemDrawingCommonVersion>
     <SystemIOFileSystemVersion>4.3.0</SystemIOFileSystemVersion>
     <SystemIOFileSystemPrimitivesVersion>4.3.0</SystemIOFileSystemPrimitivesVersion>
     <SystemIOPipesAccessControlVersion>5.0.0</SystemIOPipesAccessControlVersion>
